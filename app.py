@@ -9,7 +9,7 @@ import pydeck as pdk
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
-API_KEY = "your_tomtom_api_key"
+API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 
 # 📍 Multiple Mumbai Locations
 locations = {

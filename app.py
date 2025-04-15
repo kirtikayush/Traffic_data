@@ -21,12 +21,13 @@ central_lon = 72.8777
 lat_range = 0.5  # +/- 0.5 degrees latitude (approximately 50 km)
 lon_range = 0.5  # +/- 0.5 degrees longitude (approximately 50 km)
 
-# Number of coordinates along each axis (to get approximately 1000 points)
-n_points = 32  # 32 x 32 = 1024 points
+# Number of coordinates along each axis (to get approximately 512 points)
+n_points_lat = 32  # Number of points along latitude
+n_points_lon = 16  # Number of points along longitude
 
 # Generate grid of latitudes and longitudes
-latitudes = np.linspace(central_lat - lat_range, central_lat + lat_range, n_points)
-longitudes = np.linspace(central_lon - lon_range, central_lon + lon_range, n_points)
+latitudes = np.linspace(central_lat - lat_range, central_lat + lat_range, n_points_lat)
+longitudes = np.linspace(central_lon - lon_range, central_lon + lon_range, n_points_lon)
 
 # Create the grid of coordinates
 locations = [(lat, lon) for lat in latitudes for lon in longitudes]
@@ -92,6 +93,28 @@ def get_traffic_data():
 
     return pd.DataFrame(traffic_rows)
 
+# Define important locations (Mumbai landmarks + additional areas like Vasai, Andheri, Dadar, Mira Road)
+important_locations = {
+    "Gateway of India": (18.9219, 72.8347),
+    "Marine Drive": (18.9388, 72.8231),
+    "Bandra-Worli Sea Link": (19.0300, 72.8347),
+    "Chhatrapati Shivaji Maharaj Terminus": (18.9400, 72.8350),
+    "Elephanta Caves": (18.9276, 72.9398),
+    "Vasai": (19.3753, 72.8333),
+    "Andheri": (19.0993, 72.8347),
+    "Dadar": (19.0187, 72.8498),
+    "Mira Road": (19.2974, 72.8508),
+    "Bhayandar": (19.2853, 72.8555),
+    "Kandivali": (19.2144, 72.8492),
+    "Mulund": (19.1890, 72.9262),
+    "Borivali": (19.2875, 72.8582),
+    "Goregaon": (19.1640, 72.8499),
+    "Versova": (19.0980, 72.8282),
+    "Malad": (19.1802, 72.8349),
+    "Worli": (18.9940, 72.8268),
+    "Juhu": (19.0976, 72.8263)
+}
+
 # 🔄 UI placeholders
 placeholder_table = st.empty()
 placeholder_map = st.empty()
@@ -127,6 +150,30 @@ for _ in range(20):  # ⏱ Loop for a fixed number of cycles
     # Map (updates live)
     with placeholder_map.container():
         st.subheader("🗺️ Traffic Map")
+        layers = [
+            pdk.Layer(
+                'ScatterplotLayer',
+                data=df,
+                get_position='[Longitude, Latitude]',
+                get_color='[255, 140 - Congestion_Level, 0, 160]',
+                get_radius=300,
+                pickable=True
+            )
+        ]
+
+        # Add important location markers
+        for name, (lat, lon) in important_locations.items():
+            layers.append(
+                pdk.Layer(
+                    'ScatterplotLayer',
+                    data=[{"Latitude": lat, "Longitude": lon, "Location": name}],
+                    get_position='[Longitude, Latitude]',
+                    get_color='[255, 0, 0, 255]',  # Red color for important locations
+                    get_radius=500,
+                    pickable=True
+                )
+            )
+
         st.pydeck_chart(pdk.Deck(
             map_style='mapbox://styles/mapbox/streets-v12',
             initial_view_state=pdk.ViewState(
@@ -135,16 +182,7 @@ for _ in range(20):  # ⏱ Loop for a fixed number of cycles
                 zoom=10,
                 pitch=40,
             ),
-            layers=[
-                pdk.Layer(
-                    'ScatterplotLayer',
-                    data=df,
-                    get_position='[Longitude, Latitude]',
-                    get_color='[255, 140 - Congestion_Level, 0, 160]',
-                    get_radius=300,
-                    pickable=True
-                ),
-            ],
+            layers=layers,
         ))
 
     # Append to history and show plot

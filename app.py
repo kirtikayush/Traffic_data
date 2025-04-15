@@ -6,7 +6,6 @@ from datetime import datetime
 import time
 import pydeck as pdk
 
-# Set up the page configuration
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
@@ -62,14 +61,10 @@ def get_traffic_data():
 
     return pd.DataFrame(traffic_rows)
 
-# Coordinates for the route from Goregaon to Vasai and back
-coordinates = [
-    {"location": "Goregaon", "lat": 19.1640, "lon": 72.8499},
-    {"location": "Vasai West", "lat": 19.3867, "lon": 72.8296},
-]
+placeholder_table = st.empty()
+placeholder_map = st.empty()
+placeholder_metrics = st.empty()
 
-# Placeholder to show real-time updates
-placeholder = st.empty()
 history = []
 
 for _ in range(20):  # limit for demo
@@ -78,6 +73,7 @@ for _ in range(20):  # limit for demo
         st.warning("No traffic data available.")
         break
 
+    # Save to database
     for _, row in df.iterrows():
         cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
                           VALUES (?, ?, ?, ?, ?, ?, ?)''',
@@ -86,50 +82,36 @@ for _ in range(20):  # limit for demo
     conn.commit()
 
     history.append(df)
-    placeholder.dataframe(df, use_container_width=True)
+    placeholder_table.dataframe(df, use_container_width=True)
 
-    # Safeguard: Ensure the 'Avg Speed (km/h)' column is not empty or NaN
-    avg_speed = df['Avg Speed (km/h)'].mean()
-    if pd.notna(avg_speed):  # Check if the value is valid
-        st.metric(label="🚗 Avg Speed", value=f"{avg_speed:.2f} km/h")
-    else:
-        st.metric(label="🚗 Avg Speed", value="Data unavailable")
+    with placeholder_metrics.container():
+        st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion Level (%)'].idxmax()]['Location'])
+        st.metric(label="🚗 Avg Speed", value=f"{df['Avg Speed (km/h)'].mean():.2f} km/h")
 
-    st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion Level (%)'].idxmax()]['Location'])
-
-    st.subheader("🗺️ Traffic Map")
-    st.pydeck_chart(pdk.Deck(
-        map_style='mapbox://styles/mapbox/streets-v12',
-        initial_view_state=pdk.ViewState(
-            latitude=df['Latitude'].mean(),
-            longitude=df['Longitude'].mean(),
-            zoom=10,
-            pitch=40,
-        ),
-        layers=[
-            pdk.Layer(
-                'ScatterplotLayer',
-                data=df,
-                get_position='[Longitude, Latitude]',
-                get_color='[255, 140 - (Congestion Level (%) * 1.5), 0, 160]',  # Fix here: ensure numeric calculation without '%' symbol
-                get_radius=300,
-                pickable=True
+    with placeholder_map.container():
+        st.subheader("🗺️ Traffic Map")
+        st.pydeck_chart(pdk.Deck(
+            map_style='mapbox://styles/mapbox/streets-v12',
+            initial_view_state=pdk.ViewState(
+                latitude=df['Latitude'].mean(),
+                longitude=df['Longitude'].mean(),
+                zoom=10,
+                pitch=40,
             ),
-            pdk.Layer(
-                'PathLayer',
-                data=coordinates,
-                get_path='coordinates',
-                get_width=5,
-                get_color=[255, 0, 0, 160],
-                width_scale=10,
-                pickable=True
-            ),
-        ],
-    ))
+            layers=[
+                pdk.Layer(
+                    'ScatterplotLayer',
+                    data=df,
+                    get_position='[Longitude, Latitude]',
+                    get_color='[255, 140 - Congestion Level (%), 0, 160]',
+                    get_radius=300,
+                    pickable=True
+                ),
+            ],
+        ))
 
     time.sleep(10)
 
-# Display Historical Trends
 st.subheader("📊 Historical Trends")
 df_hist = pd.read_sql_query("SELECT * FROM traffic", conn, parse_dates=['timestamp'])
 st.line_chart(df_hist.groupby(['timestamp'])[['congestion_level']].mean())

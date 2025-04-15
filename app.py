@@ -15,7 +15,7 @@ API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 locations = {
     "Goregaon": (19.1640, 72.8499),
     "Vasai West": (19.3867, 72.8296),
-    "GE" = (22.59076821366648,88.45522500345601),
+    "GE": (22.59076821366648,88.45522500345601)
 }
 
 # 🗃 Initialize SQLite database

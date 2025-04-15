@@ -2,4 +2,3 @@ streamlit
 pandas
 requests
 pydeck
-sqlite3 

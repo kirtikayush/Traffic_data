@@ -8,37 +8,19 @@ import pydeck as pdk
 import plotly.express as px
 
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
-st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai & Vasai-Virar)")
+st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
 API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 
-# Precise Locations across Mumbai and Vasai-Virar
+# 📍 Multiple Locations
 locations = {
-    "Colaba": (18.9196, 72.8347),
-    "Churchgate": (18.9400, 72.8280),
-    "Nariman Point": (18.9240, 72.8230),
-    "Bandra": (19.0638, 72.8326),
-    "Andheri": (19.1200, 72.8342),
     "Goregaon": (19.1640, 72.8499),
-    "Vikhroli": (19.1870, 72.9519),
-    "Mulund": (19.1901, 72.9253),
-    "Thane": (19.2183, 72.9787),
-    "Vashi": (19.0760, 72.9312),
-    "Powai": (19.1155, 72.9139),
-    "Kandivali": (19.2265, 72.8589),
-    "Dadar": (19.0215, 72.8341),
-    
-    # Vasai-Virar Region (North Mumbai)
     "Vasai West": (19.3867, 72.8296),
-    "Virar": (19.3797, 72.8149),
-    "Nalasopara": (19.3727, 72.9337),
-    "Vasai East": (19.3000, 72.8486),
-    "Virar East": (19.4464, 72.8257),
-    "Naigaon": (19.3773, 72.8051)
+    "GE": (22.59076821366648, 88.45522500345601)
 }
 
 # 🗃 SQLite setup
-conn = sqlite3.connect("/tmp/traffic_data.db", check_same_thread=False)
+conn = sqlite3.connect("/tmp/traffic_data.db", check_same_thread=False, timeout=10)
 cursor = conn.cursor()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS traffic (
@@ -53,6 +35,24 @@ cursor.execute('''
     )
 ''')
 conn.commit()
+
+# Safe insert with retry mechanism
+def safe_insert_to_db(cursor, data):
+    retries = 5  # Max number of retries
+    for attempt in range(retries):
+        try:
+            cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
+                              VALUES (?, ?, ?, ?, ?, ?, ?)''', data)
+            return True  # Insert successful
+        except sqlite3.OperationalError as e:
+            if 'database is locked' in str(e).lower():
+                if attempt < retries - 1:
+                    time.sleep(1)  # Wait before retrying
+                else:
+                    return False  # Max retries reached
+            else:
+                raise  # Reraise other errors
+    return False
 
 @st.cache_data(ttl=60)
 def get_traffic_data():
@@ -95,13 +95,14 @@ for _ in range(20):  # ⏱ Loop for a fixed number of cycles
         st.warning("No traffic data available.")
         break
 
-    # Save to database
+    # Save to database with retry mechanism
     for _, row in df.iterrows():
-        cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                       (row['Location'], row['Congestion_Level'], row['Avg_Speed'],
-                        row['Free_Flow_Speed'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
-    conn.commit()
+        data = (row['Location'], row['Congestion_Level'], row['Avg_Speed'],
+                row['Free_Flow_Speed'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat())
+        if not safe_insert_to_db(cursor, data):
+            st.warning("Failed to insert data after multiple retries.")
+            break
+    conn.commit()  # Commit all at once
 
     # Display table
     placeholder_table.dataframe(df, use_container_width=True)
@@ -113,7 +114,7 @@ for _ in range(20):  # ⏱ Loop for a fixed number of cycles
 
     # Map (updates live)
     with placeholder_map.container():
-        st.subheader("🗺️ Traffic Map (Mumbai & Vasai-Virar)")
+        st.subheader("🗺️ Traffic Map")
         st.pydeck_chart(pdk.Deck(
             map_style='mapbox://styles/mapbox/streets-v12',
             initial_view_state=pdk.ViewState(

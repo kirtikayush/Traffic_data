@@ -9,7 +9,7 @@ import pydeck as pdk
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
-API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
+API_KEY = "your_tomtom_api_key"
 
 # 📍 Multiple Mumbai Locations
 locations = {
@@ -17,7 +17,7 @@ locations = {
     "Vasai West": (19.3867, 72.8296),
 }
 
-# 🗃 Initialize SQLite database (use /tmp directory on Streamlit Cloud)
+# 🗃 Initialize SQLite database (use /tmp directory on Streamlit Cloud for writable access)
 conn = sqlite3.connect('/tmp/traffic_data.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''

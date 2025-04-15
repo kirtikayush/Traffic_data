@@ -5,35 +5,43 @@ import sqlite3
 from datetime import datetime
 import time
 import pydeck as pdk
+import os
 
+# Set up Streamlit configuration
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
 API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 
-# 📍 Multiple Mumbai Locations
+# Multiple Mumbai Locations (Goregaon and Vasai)
 locations = {
     "Goregaon": (19.1640, 72.8499),
     "Vasai West": (19.3867, 72.8296),
 }
 
-# 🗃 Initialize SQLite database
-conn = sqlite3.connect("traffic_data.db", check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS traffic (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        location TEXT,
-        congestion_level INTEGER,
-        avg_speed REAL,
-        free_flow_speed REAL,
-        lat REAL,
-        lon REAL,
-        timestamp TEXT
-    )
-''')
-conn.commit()
+# Ensure the database file exists with the correct permissions
+db_path = 'traffic_data.db'
+if not os.path.exists(db_path):
+    print(f"Creating the database at {db_path}")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS traffic (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            location TEXT,
+            congestion_level INTEGER,
+            avg_speed REAL,
+            free_flow_speed REAL,
+            lat REAL,
+            lon REAL,
+            timestamp TEXT
+        )
+    ''')
+    conn.commit()
+else:
+    print(f"Database found at {db_path}")
 
+# Function to get traffic data from TomTom API
 @st.cache_data(ttl=60)
 def get_traffic_data():
     traffic_rows = []
@@ -61,33 +69,39 @@ def get_traffic_data():
 
     return pd.DataFrame(traffic_rows)
 
+# Placeholder for displaying the traffic data
 placeholder_table = st.empty()
 placeholder_map = st.empty()
 placeholder_metrics = st.empty()
 
 history = []
 
-for _ in range(20):  # limit for demo
+for _ in range(20):  # limit for demo, can be adjusted
     df = get_traffic_data()
     if df.empty:
         st.warning("No traffic data available.")
         break
 
-    # Save to database
-    for _, row in df.iterrows():
-        cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                       (row['Location'], row['Congestion Level (%)'], row['Avg Speed (km/h)'],
-                        row['Free Flow Speed (km/h)'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
-    conn.commit()
-
+    # Save to the SQLite database
+    try:
+        for _, row in df.iterrows():
+            cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
+                              VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                           (row['Location'], row['Congestion Level (%)'], row['Avg Speed (km/h)'],
+                            row['Free Flow Speed (km/h)'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
+        conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"Database error: {e}")
+    
     history.append(df)
     placeholder_table.dataframe(df, use_container_width=True)
 
+    # Display Metrics
     with placeholder_metrics.container():
         st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion Level (%)'].idxmax()]['Location'])
         st.metric(label="🚗 Avg Speed", value=f"{df['Avg Speed (km/h)'].mean():.2f} km/h")
 
+    # Display Traffic Map using Pydeck
     with placeholder_map.container():
         st.subheader("🗺️ Traffic Map")
         st.pydeck_chart(pdk.Deck(
@@ -112,6 +126,7 @@ for _ in range(20):  # limit for demo
 
     time.sleep(10)
 
+# Historical Trends Section
 st.subheader("📊 Historical Trends")
 df_hist = pd.read_sql_query("SELECT * FROM traffic", conn, parse_dates=['timestamp'])
 st.line_chart(df_hist.groupby(['timestamp'])[['congestion_level']].mean())

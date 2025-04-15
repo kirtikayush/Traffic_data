@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime
 import time
 import pydeck as pdk
+import urllib.parse  # Import urllib for encoding the coordinates
 
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
@@ -17,8 +18,8 @@ locations = {
     "Vasai West": (19.3867, 72.8296),
 }
 
-# 🗃 Initialize SQLite database (use /tmp directory on Streamlit Cloud for writable access)
-conn = sqlite3.connect('/tmp/traffic_data.db', check_same_thread=False)
+# 🗃 Initialize SQLite database
+conn = sqlite3.connect("traffic_data.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS traffic (
@@ -34,11 +35,15 @@ cursor.execute('''
 ''')
 conn.commit()
 
+@st.cache_data(ttl=60)
 def get_traffic_data():
     traffic_rows = []
 
     for name, (lat, lon) in locations.items():
-        url = f"https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point={lat}%2C{lon}&key={API_KEY}"
+        # Ensure the latitude and longitude are properly URL-encoded
+        point = urllib.parse.quote(f"{lat},{lon}")
+        url = f"https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point={point}&key={API_KEY}"
+        
         response = requests.get(url)
         if response.status_code != 200:
             continue
@@ -72,16 +77,13 @@ for _ in range(20):  # limit for demo
         st.warning("No traffic data available.")
         break
 
-    # Save to database (write operation)
-    try:
-        for _, row in df.iterrows():
-            cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
-                              VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                           (row['Location'], row['Congestion Level (%)'], row['Avg Speed (km/h)'],
-                            row['Free Flow Speed (km/h)'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
-        conn.commit()
-    except sqlite3.OperationalError as e:
-        st.error(f"Database error: {e}")
+    # Save to database
+    for _, row in df.iterrows():
+        cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                       (row['Location'], row['Congestion Level (%)'], row['Avg Speed (km/h)'],
+                        row['Free Flow Speed (km/h)'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
+    conn.commit()
 
     history.append(df)
     placeholder_table.dataframe(df, use_container_width=True)
@@ -117,4 +119,3 @@ for _ in range(20):  # limit for demo
 st.subheader("📊 Historical Trends")
 df_hist = pd.read_sql_query("SELECT * FROM traffic", conn, parse_dates=['timestamp'])
 st.line_chart(df_hist.groupby(['timestamp'])[['congestion_level']].mean())
-

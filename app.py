@@ -51,9 +51,9 @@ def get_traffic_data():
 
         traffic_rows.append({
             "Location": name,
-            "Congestion Level (%)": max(0, congestion),
-            "Avg Speed (km/h)": data["currentSpeed"],
-            "Free Flow Speed (km/h)": data["freeFlowSpeed"],
+            "Congestion_Level": max(0, congestion),
+            "Avg_Speed": data["currentSpeed"],
+            "Free_Flow_Speed": data["freeFlowSpeed"],
             "Latitude": lat,
             "Longitude": lon,
             "Timestamp": datetime.now()
@@ -70,19 +70,21 @@ for _ in range(20):  # limit for demo
         st.warning("No traffic data available.")
         break
 
+    # Save to database
     for _, row in df.iterrows():
         cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
                           VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                       (row['Location'], row['Congestion Level (%)'], row['Avg Speed (km/h)'],
-                        row['Free Flow Speed (km/h)'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
+                       (row['Location'], row['Congestion_Level'], row['Avg_Speed'],
+                        row['Free_Flow_Speed'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
     conn.commit()
 
     history.append(df)
     placeholder.dataframe(df, use_container_width=True)
 
-    st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion Level (%)'].idxmax()]['Location'])
-    st.metric(label="🚗 Avg Speed", value=f"{df['Avg Speed (km/h)'].mean():.2f} km/h")
+    st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion_Level'].idxmax()]['Location'])
+    st.metric(label="🚗 Avg Speed", value=f"{df['Avg_Speed'].mean():.2f} km/h")
 
+    # 🗺️ Traffic Map
     st.subheader("🗺️ Traffic Map")
     st.pydeck_chart(pdk.Deck(
         map_style='mapbox://styles/mapbox/streets-v12',
@@ -97,7 +99,7 @@ for _ in range(20):  # limit for demo
                 'ScatterplotLayer',
                 data=df,
                 get_position='[Longitude, Latitude]',
-                get_color='[255, 140 - Congestion Level (%), 0, 160]',
+                get_color='[255, 140 - Congestion_Level, 0, 160]',
                 get_radius=300,
                 pickable=True
             ),
@@ -106,6 +108,7 @@ for _ in range(20):  # limit for demo
 
     time.sleep(10)
 
+# 📊 Historical Trends
 st.subheader("📊 Historical Trends")
 df_hist = pd.read_sql_query("SELECT * FROM traffic", conn, parse_dates=['timestamp'])
 st.line_chart(df_hist.groupby(['timestamp'])[['congestion_level']].mean())

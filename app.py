@@ -5,7 +5,6 @@ import sqlite3
 from datetime import datetime
 import time
 import pydeck as pdk
-import urllib.parse  # Import urllib for encoding the coordinates
 
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
@@ -19,7 +18,7 @@ locations = {
 }
 
 # 🗃 Initialize SQLite database
-conn = sqlite3.connect('/tmp/traffic_data.db', check_same_thread=False)
+conn = sqlite3.connect("traffic_data.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS traffic (
@@ -40,10 +39,7 @@ def get_traffic_data():
     traffic_rows = []
 
     for name, (lat, lon) in locations.items():
-        # Ensure the latitude and longitude are properly URL-encoded
-        point = urllib.parse.quote(f"{lat},{lon}")
-        url = f"https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point={point}&key={API_KEY}"
-        
+        url = f"https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point={lat}%2C{lon}&key={API_KEY}"
         response = requests.get(url)
         if response.status_code != 200:
             continue
@@ -55,9 +51,9 @@ def get_traffic_data():
 
         traffic_rows.append({
             "Location": name,
-            "Congestion Level (%)": max(0, congestion),
-            "Avg Speed (km/h)": data["currentSpeed"],
-            "Free Flow Speed (km/h)": data["freeFlowSpeed"],
+            "Congestion_Level": max(0, congestion),
+            "Avg_Speed": data["currentSpeed"],
+            "Free_Flow_Speed": data["freeFlowSpeed"],
             "Latitude": lat,
             "Longitude": lon,
             "Timestamp": datetime.now()
@@ -65,10 +61,7 @@ def get_traffic_data():
 
     return pd.DataFrame(traffic_rows)
 
-placeholder_table = st.empty()
-placeholder_map = st.empty()
-placeholder_metrics = st.empty()
-
+placeholder = st.empty()
 history = []
 
 for _ in range(20):  # limit for demo
@@ -81,41 +74,41 @@ for _ in range(20):  # limit for demo
     for _, row in df.iterrows():
         cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
                           VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                       (row['Location'], row['Congestion Level (%)'], row['Avg Speed (km/h)'],
-                        row['Free Flow Speed (km/h)'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
+                       (row['Location'], row['Congestion_Level'], row['Avg_Speed'],
+                        row['Free_Flow_Speed'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
     conn.commit()
 
     history.append(df)
-    placeholder_table.dataframe(df, use_container_width=True)
+    placeholder.dataframe(df, use_container_width=True)
 
-    with placeholder_metrics.container():
-        st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion Level (%)'].idxmax()]['Location'])
-        st.metric(label="🚗 Avg Speed", value=f"{df['Avg Speed (km/h)'].mean():.2f} km/h")
+    st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion_Level'].idxmax()]['Location'])
+    st.metric(label="🚗 Avg Speed", value=f"{df['Avg_Speed'].mean():.2f} km/h")
 
-    with placeholder_map.container():
-        st.subheader("🗺️ Traffic Map")
-        st.pydeck_chart(pdk.Deck(
-            map_style='mapbox://styles/mapbox/streets-v12',
-            initial_view_state=pdk.ViewState(
-                latitude=df['Latitude'].mean(),
-                longitude=df['Longitude'].mean(),
-                zoom=10,
-                pitch=40,
+    # 🗺️ Traffic Map
+    st.subheader("🗺️ Traffic Map")
+    st.pydeck_chart(pdk.Deck(
+        map_style='mapbox://styles/mapbox/streets-v12',
+        initial_view_state=pdk.ViewState(
+            latitude=df['Latitude'].mean(),
+            longitude=df['Longitude'].mean(),
+            zoom=10,
+            pitch=40,
+        ),
+        layers=[
+            pdk.Layer(
+                'ScatterplotLayer',
+                data=df,
+                get_position='[Longitude, Latitude]',
+                get_color='[255, 140 - Congestion_Level, 0, 160]',
+                get_radius=300,
+                pickable=True
             ),
-            layers=[
-                pdk.Layer(
-                    'ScatterplotLayer',
-                    data=df,
-                    get_position='[Longitude, Latitude]',
-                    get_color='[255, 140 - Congestion Level (%) , 0, 160]',
-                    get_radius=300,
-                    pickable=True
-                ),
-            ],
-        ))
+        ],
+    ))
 
     time.sleep(10)
 
+# 📊 Historical Trends
 st.subheader("📊 Historical Trends")
 df_hist = pd.read_sql_query("SELECT * FROM traffic", conn, parse_dates=['timestamp'])
 st.line_chart(df_hist.groupby(['timestamp'])[['congestion_level']].mean())

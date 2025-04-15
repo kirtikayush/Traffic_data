@@ -12,11 +12,37 @@ st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
 API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 
-# 📍 Multiple Locations
+# 📍 Multiple Locations (updated coordinates for Vasai Virar and surrounding areas)
 locations = {
     "Goregaon": (19.1640, 72.8499),
     "Vasai West": (19.3867, 72.8296),
-    "GE": (22.59076821366648, 88.45522500345601)
+    "Vasai East": (19.3891, 72.8280),
+    "Virar West": (19.3012, 72.8070),
+    "Virar East": (19.3012, 72.8050),
+    "Borivali West": (19.2801, 72.8492),
+    "Borivali East": (19.2983, 72.8524),
+    "Andheri West": (19.1064, 72.8311),
+    "Andheri East": (19.1111, 72.8479),
+    "Bandra West": (19.0654, 72.8260),
+    "Bandra East": (19.0646, 72.8552),
+    "Worli": (18.9863, 72.8258),
+    "Dadar": (19.0196, 72.8340),
+    "Lower Parel": (18.9984, 72.8259),
+    "Parel": (19.0076, 72.8325),
+    "Prabhadevi": (18.9995, 72.8249),
+    "Juhu": (19.1132, 72.8258),
+    "Santacruz West": (19.0870, 72.8356),
+    "Kandivali West": (19.1953, 72.8563),
+    "Kandivali East": (19.2137, 72.8691),
+    "Malad West": (19.1791, 72.8553),
+    "Malad East": (19.1910, 72.8560),
+    "Thane": (19.2183, 72.9788),
+    "Navi Mumbai": (19.0833, 73.0300),
+    "Airoli": (19.1894, 73.0423),
+    "Kalyan": (19.2406, 73.1303),
+    "Dombivli": (19.2100, 73.0900),
+    "Kharghar": (19.0434, 73.0952),
+    "Vashi": (19.0760, 72.9916),
 }
 
 # 🗃 SQLite setup

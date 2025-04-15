@@ -88,8 +88,14 @@ for _ in range(20):  # limit for demo
     history.append(df)
     placeholder.dataframe(df, use_container_width=True)
 
+    # Safeguard: Ensure the 'Avg Speed (km/h)' column is not empty or NaN
+    avg_speed = df['Avg Speed (km/h)'].mean()
+    if pd.notna(avg_speed):  # Check if the value is valid
+        st.metric(label="🚗 Avg Speed", value=f"{avg_speed:.2f} km/h")
+    else:
+        st.metric(label="🚗 Avg Speed", value="Data unavailable")
+
     st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion Level (%)'].idxmax()]['Location'])
-    st.metric(label="🚗 Avg Speed", value=f"{df['Avg Speed (km/h)'].mean():.2f} km/h")
 
     st.subheader("🗺️ Traffic Map")
     st.pydeck_chart(pdk.Deck(

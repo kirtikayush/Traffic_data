@@ -20,7 +20,7 @@ locations = {
 }
 
 # 🗃 SQLite setup
-conn = sqlite3.connect("traffic_data.db", check_same_thread=False)
+conn = sqlite3.connect("/tmp/traffic_data.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS traffic (

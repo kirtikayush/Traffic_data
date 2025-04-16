@@ -14,26 +14,11 @@ API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 
 # Selected 20 important locations around Mumbai and Vasai-Virar
 locations = [
-    ("Mumbai Central", 19.0760, 72.8777),
-    ("Andheri", 19.0993, 72.8347),
-    ("Dadar", 19.0187, 72.8498),
     ("Vasai", 19.3753, 72.8333),
-    ("Mira Road", 19.2974, 72.8508),
     ("Borivali", 19.2875, 72.8582),
-    ("Malad", 19.0645, 72.8420),
-    ("Gateway of India", 18.9219, 72.8347),
     ("Marine Drive", 18.9388, 72.8231),
-    ("Worli", 18.9940, 72.8268),
     ("Goregaon", 19.1625, 72.8500),
-    ("Juhu", 19.1336, 72.8347),
-    ("Kandivali", 19.2152, 72.8574),
-    ("Lower Parel", 19.1510, 72.8886),
-    ("Kurla", 19.1828, 72.8679),
-    ("Vile Parle", 19.1264, 72.8313),
-    ("Parel", 19.1358, 72.8871),
-    ("Versova", 19.0976, 72.8282),
-    ("Ghatkopar", 19.1311, 72.9130),
-    ("Thane", 19.1221, 72.9291),
+    ("Greenfield Elegance", 22.59060714609772, 88.4552482332215)
 ]
 
 # 🗃 SQLite setup

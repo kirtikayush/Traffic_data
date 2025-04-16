@@ -14,10 +14,10 @@ API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
 
 # Selected 20 important locations around Mumbai and Vasai-Virar
 locations = [
-    ("Vasai", 19.3753, 72.8333),
+    ("Vasai", 19.367855, 72.816978),
     ("Borivali", 19.2875, 72.8582),
     ("Marine Drive", 18.9388, 72.8231),
-    ("Goregaon", 19.1625, 72.8500),
+    ("Goregaon", 19.161631, 72.85104),
     ("Greenfield Elegance", 22.59060714609772, 88.4552482332215)
 ]
 

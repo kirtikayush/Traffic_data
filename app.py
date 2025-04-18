@@ -10,9 +10,8 @@ import plotly.express as px
 st.set_page_config(page_title="🚦 Mumbai Traffic Analyzer", layout="wide")
 st.title("🚦 Live Traffic Analyzer (TomTom API - Mumbai)")
 
-API_KEY = "3Lo3uEOWB9XZAzAa2olq7tutorXJvgpY"
+API_KEY = st.secrets["TOMTOM_API_KEY"]
 
-# Selected 20 important locations around Mumbai and Vasai-Virar
 locations = [
     ("Vasai", 19.367855, 72.816978),
     ("Borivali", 19.2875, 72.8582),
@@ -21,7 +20,6 @@ locations = [
     ("Greenfield Elegance", 22.59060714609772, 88.4552482332215)
 ]
 
-# 🗃 SQLite setup
 conn = sqlite3.connect("/tmp/traffic_data.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''
@@ -64,22 +62,19 @@ def get_traffic_data():
 
     return pd.DataFrame(traffic_rows)
 
-# 🔄 UI placeholders
 placeholder_table = st.empty()
 placeholder_map = st.empty()
 placeholder_metrics = st.empty()
 placeholder_chart = st.empty()
 
-# ⏳ Live update loop
 history = []
 
-for _ in range(20):  # ⏱ Loop for a fixed number of cycles
+for _ in range(20): 
     df = get_traffic_data()
     if df.empty:
         st.warning("No traffic data available.")
         break
 
-    # Save to database
     for _, row in df.iterrows():
         cursor.execute('''INSERT INTO traffic (location, congestion_level, avg_speed, free_flow_speed, lat, lon, timestamp)
                           VALUES (?, ?, ?, ?, ?, ?, ?)''',
@@ -87,15 +82,12 @@ for _ in range(20):  # ⏱ Loop for a fixed number of cycles
                         row['Free_Flow_Speed'], row['Latitude'], row['Longitude'], row['Timestamp'].isoformat()))
     conn.commit()
 
-    # Display table
     placeholder_table.dataframe(df, use_container_width=True)
 
-    # Metrics
     with placeholder_metrics.container():
         st.metric(label="🚨 Most Congested", value=df.loc[df['Congestion_Level'].idxmax()]['Location'])
         st.metric(label="🚗 Avg Speed", value=f"{df['Avg_Speed'].mean():.2f} km/h")
 
-    # Map (updates live)
     with placeholder_map.container():
         st.subheader("🗺️ Traffic Map")
         st.pydeck_chart(pdk.Deck(
@@ -119,12 +111,10 @@ for _ in range(20):  # ⏱ Loop for a fixed number of cycles
             ],
         ))
 
-    # Append to history and show plot
     history.append(df)
     combined_df = pd.concat(history).reset_index(drop=True)
     combined_df['Timestamp'] = pd.to_datetime(combined_df['Timestamp'])
 
-    # Melt for Plotly
     plot_df = combined_df.melt(id_vars='Timestamp', value_vars=['Avg_Speed', 'Congestion_Level'],
                                var_name='Metric', value_name='Value')
 
